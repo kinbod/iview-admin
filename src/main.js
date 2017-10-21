@@ -110,10 +110,36 @@ const store = new Vuex.Store({
                 }
             });
         },
-        moveToSecond (state, index) {
-            let openedPage = state.pageOpenedList[index];
-            state.pageOpenedList.splice(index, 1);
+        moveToSecond (state, get) {
+            let openedPage = state.pageOpenedList[get.index];
+            if (get.argu) {
+                openedPage.argu = get.argu;
+            }
+            state.pageOpenedList.splice(get.index, 1);
             state.pageOpenedList.splice(1, 0, openedPage);
+            localStorage.pageOpenedList = JSON.stringify(state.pageOpenedList);
+        },
+        clearAllTags (state) {
+            state.pageOpenedList.splice(1);
+            router.push({
+                name: 'home_index'
+            });
+            localStorage.pageOpenedList = JSON.stringify(state.pageOpenedList);
+        },
+        clearOtherTags (state, vm) {
+            let currentName = vm.$route.name;
+            let currentIndex = 0;
+            state.pageOpenedList.forEach((item, index) => {
+                if (item.name === currentName) {
+                    currentIndex = index;
+                }
+            });
+            if (currentIndex === 0) {
+                state.pageOpenedList.splice(1);
+            } else {
+                state.pageOpenedList.splice(currentIndex + 1);
+                state.pageOpenedList.splice(1, currentIndex - 1);
+            }
             localStorage.pageOpenedList = JSON.stringify(state.pageOpenedList);
         },
         setOpenedList (state) {
