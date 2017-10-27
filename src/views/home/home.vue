@@ -186,6 +186,7 @@ import mapDataTable from './components/mapDataTable.vue';
 import toDoListItem from './components/toDoListItem.vue';
 
 export default {
+    name: 'home',
     components: {
         homeMap,
         dataSourcePie,
@@ -241,7 +242,7 @@ export default {
                 this.toDoList.unshift({
                     title: this.newToDoItemValue
                 });
-                setTimeout(function () {
+                setTimeout(() => {
                     this.newToDoItemValue = '';
                 }, 200);
                 this.showAddNewTodo = false;

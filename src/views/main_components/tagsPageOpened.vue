@@ -3,7 +3,7 @@
 </style>
 
 <template>
-    <div ref="scrollCon" @mousewheel="handlescroll" @mouseout="handlemouseout" class="tags-outer-scroll-con">
+    <div ref="scrollCon" @mousewheel="handlescroll" class="tags-outer-scroll-con">
         <div class="close-all-tag-con">
             <Dropdown @on-click="handleTagsOption">
                 <Button size="small" type="primary">
@@ -16,30 +16,37 @@
                 </DropdownMenu>
             </Dropdown>
         </div>
-        <div ref="scrollBody" class="tags-inner-scroll-body" :style="{left: tagConLeft + 'px'}">
+        <div ref="scrollBody" class="tags-inner-scroll-body" :style="{left: tagBodyLeft + 'px'}">
             <transition-group name="taglist-moving-animation">
                 <Tag 
                     type="dot"
-                    v-for="item in pageTagsList" 
+                    v-for="(item, index) in pageTagsList" 
+                    ref="tagsPageOpened"
                     :key="item.name" 
                     :name="item.name" 
                     @on-close="closePage"
                     @click.native="linkTo(item)"
                     :closable="item.name==='home_index'?false:true"
                     :color="item.children?(item.children[0].name===currentPageName?'blue':'default'):(item.name===currentPageName?'blue':'default')"
-                >{{ item.title }}</Tag>
+                >{{ itemTitle(item) }}</Tag>
             </transition-group>
         </div>
     </div>
 </template>
 
 <script>
+import Vue from 'vue';
+import VueI18n from 'vue-i18n';
+Vue.use(VueI18n);
 export default {
     name: 'tagsPageOpened',
     data () {
         return {
             currentPageName: this.$route.name,
-            tagConLeft: 0
+            tagBodyLeft: 0,
+            currentScrollBodyWidth: 0,
+            refsTag: [],
+            tagsCount: 1
         };
     },
     props: {
@@ -48,11 +55,22 @@ export default {
     computed: {
         title () {
             return this.$store.state.currentTitle;
+        },
+        tagsList () {
+            return this.$store.state.pageOpenedList;
         }
     },
     methods: {
+        itemTitle (item) {
+            if (typeof item.title === 'object') {
+                return this.$t(item.title.i18n);
+            } else {
+                return item.title;
+            }
+        },
         closePage (event, name) {
             this.$store.commit('removeTag', name);
+            this.$store.commit('closePage', name);
             localStorage.pageOpenedList = JSON.stringify(this.$store.state.pageOpenedList);
             if (this.currentPageName === name) {
                 let lastPageName = '';
@@ -67,31 +85,32 @@ export default {
             }
         },
         linkTo (item) {
-            if (item.path.indexOf(':') > -1) {
-                this.$router.push({
-                    name: item.name,
-                    params: item.argu
-                });
-            } else {
-                this.$router.push({
-                    name: item.name
-                });
+            let routerObj = {};
+            routerObj.name = item.name;
+            if (item.argu) {
+                routerObj.params = item.argu;
             }
+            if (item.query) {
+                routerObj.query = item.query;
+            }
+            this.$router.push(routerObj);
         },
         handlescroll (e) {
-            document.body.style.overflow = 'hidden';
             let left = 0;
             if (e.wheelDelta > 0) {
-                left = Math.min(0, this.tagConLeft + e.wheelDelta);
+                left = Math.min(0, this.tagBodyLeft + e.wheelDelta);
             } else {
-                if (this.$refs.scrollCon.offsetWidth < this.$refs.scrollBody.offsetWidth) {
-                    left = Math.max(this.tagConLeft + e.wheelDelta, this.$refs.scrollCon.offsetWidth - this.$refs.scrollBody.offsetWidth);
+                if (this.$refs.scrollCon.offsetWidth - 100 < this.$refs.scrollBody.offsetWidth) {
+                    if (this.tagBodyLeft < -(this.$refs.scrollBody.offsetWidth - this.$refs.scrollCon.offsetWidth + 100)) {
+                        left = this.tagBodyLeft;
+                    } else {
+                        left = Math.max(this.tagBodyLeft + e.wheelDelta, this.$refs.scrollCon.offsetWidth - this.$refs.scrollBody.offsetWidth - 100);
+                    }
+                } else {
+                    this.tagBodyLeft = 0;
                 }
             }
-            this.tagConLeft = left;
-        },
-        handlemouseout () {
-            document.body.style.overflow = 'auto';
+            this.tagBodyLeft = left;
         },
         handleTagsOption (type) {
             if (type === 'clearAll') {
@@ -99,11 +118,44 @@ export default {
             } else {
                 this.$store.commit('clearOtherTags', this);
             }
+            this.tagBodyLeft = 0;
+        },
+        moveToView (tag) {
+            if (tag.offsetLeft < -this.tagBodyLeft) {
+                // 标签在可视区域左侧
+                this.tagBodyLeft = -tag.offsetLeft + 10;
+            } else if (tag.offsetLeft + 10 > -this.tagBodyLeft && tag.offsetLeft + tag.offsetWidth < -this.tagBodyLeft + this.$refs.scrollCon.offsetWidth - 100) {
+                // 标签在可视区域
+            } else {
+                // 标签在可视区域右侧
+                this.tagBodyLeft = -(tag.offsetLeft - (this.$refs.scrollCon.offsetWidth - 100 - tag.offsetWidth) + 20);
+            }
         }
+    },
+    mounted () {
+        this.refsTag = this.$refs.tagsPageOpened;
+        setTimeout(() => {
+            this.refsTag.forEach((item, index) => {
+                if (this.$route.name === item.name) {
+                    let tag = this.refsTag[index].$el;
+                    this.moveToView(tag);
+                }
+            });
+        }, 1);  // 这里不设定时器就会有偏移bug
+        this.tagsCount = this.tagsList.length;
     },
     watch: {
         '$route' (to) {
             this.currentPageName = to.name;
+            this.$nextTick(() => {
+                this.refsTag.forEach((item, index) => {
+                    if (to.name === item.name) {
+                        let tag = this.refsTag[index].$el;
+                        this.moveToView(tag);
+                    }
+                });
+            });
+            this.tagsCount = this.tagsList.length;
         }
     }
 };
