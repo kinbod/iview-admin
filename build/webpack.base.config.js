@@ -38,11 +38,12 @@ module.exports = {
             },
             {
                 test: /iview\/.*?js$/,
-                loader: 'babel-loader'
+                loader: 'happypack/loader?id=happybabel',
+                exclude: /node_modules/
             },
             {
                 test: /\.js$/,
-                loader: 'babel-loader',
+                loader: 'happypack/loader?id=happybabel',
                 exclude: /node_modules/
             },
             {
@@ -61,11 +62,10 @@ module.exports = {
             {
                 test: /\.less$/,
                 use: ExtractTextPlugin.extract({
-                    use: ['css-hot-loader', 'autoprefixer-loader', 'less-loader'],
+                    use: ['autoprefixer-loader', 'less-loader'],
                     fallback: 'style-loader'
                 }),
             },
-
             {
                 test: /\.(gif|jpg|png|woff|svg|eot|ttf)\??.*$/,
                 loader: 'url-loader?limit=1024'
